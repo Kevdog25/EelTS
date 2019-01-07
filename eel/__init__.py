@@ -86,6 +86,7 @@ class eel:
     OpenSocket = None
     Callbacks = {}
     CallReturnValues = {}
+    LogMessages = False
 
     def __init__(self, rootWebDir):
         if eel.RootWebDir is not None:
@@ -158,7 +159,7 @@ class eel:
 
         while True:
             msg = ws.receive()
-            print('Received message: {}'.format(msg))
+            if eel.LogMessages: print('Received message: {}'.format(msg))
             if msg is not None:
                 message = json.loads(msg, cls = MessageDecoder)
                 if isinstance(message, SocketCommand):
@@ -197,7 +198,7 @@ class eel:
 
     @staticmethod
     def _send(message):
-        print('Sending message: {}'.format(message))
+        if eel.LogMessages: print('Sending message: {}'.format(message))
         eel.OpenSocket.send(message)
 
     @staticmethod

@@ -22,11 +22,23 @@ class Eel {
         this.websocket = null;
         this.openCommands = {};
         this.exposedFunctions = {};
+        this.afterInitFunctions = [];
+        this.initialized = false;
+        this.LogMessages = false;
         this._onLoad = this._onLoad.bind(this);
+        this._init = this._init.bind(this);
         this._onServerMessage = this._onServerMessage.bind(this);
         this._addServerFunction = this._addServerFunction.bind(this);
         document.addEventListener('DOMContentLoaded', this._onLoad);
         this.expose(this._addServerFunction, '_addServerFunction');
+    }
+    onInit(f) {
+        if (this.initialized) {
+            f();
+        }
+        else {
+            this.afterInitFunctions.push(f);
+        }
     }
     expose(f, name = null) {
         if (name == null) {
@@ -39,11 +51,20 @@ class Eel {
     _onLoad(event) {
         this.host = window.location.origin.replace('http', 'ws');
         this.websocket = new WebSocket(this.host + '/establishConnection');
+        this.websocket.onmessage = this._init;
+    }
+    _init(event) {
+        this._onServerMessage(event);
+        this.initialized = true;
+        this.afterInitFunctions.forEach((f) => {
+            f();
+        });
         this.websocket.onmessage = this._onServerMessage;
     }
     _onServerMessage(event) {
         let message = JSON.parse(event.data);
-        console.log('Received message: ' + event.data);
+        if (this.LogMessages)
+            console.log('Received message: ' + event.data);
         if (message['_type'] === 'Command') {
             this._executeCommand(message);
         }
@@ -84,6 +105,7 @@ class Eel {
             let command = new SocketCommand(name, args);
             if (callback) {
                 this.openCommands[command.ID] = callback;
+                this._send(command);
             }
             else {
                 return new Promise((resolve) => {
@@ -91,7 +113,6 @@ class Eel {
                     this.openCommands[command.ID] = resolve;
                 });
             }
-            this._send(command);
         };
     }
     _handleResponse(response) {
@@ -105,7 +126,8 @@ class Eel {
         }
     }
     _send(message) {
-        console.log('Sending message: ' + JSON.stringify(message));
+        if (this.LogMessages)
+            console.log('Sending message: ' + JSON.stringify(message));
         if (this.websocket)
             this.websocket.send(JSON.stringify(message));
         else
